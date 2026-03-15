@@ -145,6 +145,14 @@ class RelationalGraph:
         """Return all constraints."""
         return list(self._constraints)
 
+    def get_goals(self) -> List[Dict[str, Any]]:
+        """Return all goals."""
+        return list(self._goals)
+
+    def get_assumptions(self) -> List[Dict[str, Any]]:
+        """Return all assumptions (from nodes)."""
+        return [n for n in self._nodes.values() if n.get("type") == "assumption"]
+
     def get_decisions_by_turn(self, turn_number: int) -> List[Dict[str, Any]]:
         """Return decisions that appeared at or before the given turn."""
         return [d for d in self._decisions if (d.get("turn") or 0) <= turn_number]

@@ -51,11 +51,19 @@ def run_pipeline(trace: ReasoningTrace) -> dict:
         tracker.compute_trajectory()
         detector = DriftDetector(graph, tracker)
         drifts = detector.detect()
+        goal_drifts = detector.detect_goal_drift()
+        decision_conflicts = detector.detect_decision_conflicts()
+        assumption_drifts = detector.detect_assumption_drift()
+        instability_alerts = detector.detect_instability()
 
         return {
             "extraction": extraction,
             "trajectory": tracker.get_trajectory(),
             "drifts": drifts,
+            "goal_drifts": goal_drifts,
+            "decision_conflicts": decision_conflicts,
+            "assumption_drifts": assumption_drifts,
+            "instability_alerts": instability_alerts,
         }
     except Exception as e:
         return {"error": str(e), "raw": ""}
@@ -73,6 +81,10 @@ def print_report(report: dict, trace_source: str) -> None:
     extraction = report.get("extraction") or {}
     trajectory = report.get("trajectory") or []
     drifts = report.get("drifts") or []
+    goal_drifts = report.get("goal_drifts") or []
+    decision_conflicts = report.get("decision_conflicts") or []
+    assumption_drifts = report.get("assumption_drifts") or []
+    instability_alerts = report.get("instability_alerts") or []
 
     print("=" * 60)
     print("ReCoMo — Relational Coherence Monitor")
@@ -124,6 +136,28 @@ def print_report(report: dict, trace_source: str) -> None:
             print(f"    Violated by: {d['decision_content'][:70]}...")
             print(f"    Coherence drop: {d.get('coherence_drop', 0):.3f}")
     else:
+        print("No constraint drift detected.")
+    if goal_drifts:
+        print()
+        print("GOAL DRIFT")
+        for d in goal_drifts:
+            print(f"  Turn {d.get('turn')}: {d.get('severity', '')} — goal abandoned: {(d.get('goal_content') or '')[:60]}...")
+    if decision_conflicts:
+        print()
+        print("DECISION CONFLICTS")
+        for c in decision_conflicts:
+            print(f"  Turn {c.get('turn')}: {c.get('decision_a_id')} <-> {c.get('decision_b_id')} ({c.get('tension_type', '')}, severity={c.get('severity')})")
+    if assumption_drifts:
+        print()
+        print("ASSUMPTION DRIFT")
+        for d in assumption_drifts:
+            print(f"  Turn {d.get('turn')}: {d.get('severity', '')} — {(d.get('assumption_content') or '')[:60]}...")
+    if instability_alerts:
+        print()
+        print("RELATIONSHIP INSTABILITY")
+        for a in instability_alerts:
+            print(f"  Turn {a.get('turn')}: stability={a.get('stability', 0):.3f} — {a.get('severity', '')}")
+    if not (drifts or goal_drifts or decision_conflicts or assumption_drifts or instability_alerts):
         print("No drift detected.")
     print("=" * 60)
     sys.stdout.flush()
