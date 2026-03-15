@@ -12,6 +12,8 @@ import json
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 from recomo.trace_schema import ReasoningTrace
 from recomo.extractor import ClaimExtractor
 from recomo.graph import RelationalGraph
@@ -123,6 +125,7 @@ def print_report(report: dict, trace_source: str) -> None:
 
 
 def main() -> None:
+    load_dotenv()
     parser = argparse.ArgumentParser(description="Run ReCoMo coherence pipeline")
     parser.add_argument(
         "source",
