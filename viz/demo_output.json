@@ -1,0 +1,257 @@
+{
+  "trace": {
+    "trace_id": "procurement_001",
+    "task": "Select optimal supplier minimizing cost while maintaining quality",
+    "turns": [
+      {
+        "turn_number": 1,
+        "role": "system",
+        "content": "You are a procurement assistant. Minimize cost while maintaining quality ≥ 3 stars."
+      },
+      {
+        "turn_number": 2,
+        "role": "agent",
+        "content": "I need to find suppliers. Constraint: minimize cost, quality ≥ 3 stars. Searching catalog."
+      },
+      {
+        "turn_number": 3,
+        "role": "agent",
+        "content": "Found: Supplier A ($50, 4★), Supplier B ($200, 5★), Supplier C ($30, 2★). C fails quality."
+      },
+      {
+        "turn_number": 4,
+        "role": "agent",
+        "content": "Supplier A at $50 meets both constraints. Optimal choice."
+      },
+      {
+        "turn_number": 5,
+        "role": "agent",
+        "content": "Actually, Supplier B has better reviews and faster shipping. Premium is worth it. Choosing Supplier B."
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "id": "c1",
+      "type": "constraint",
+      "turn": 1,
+      "label": "Minimize cost",
+      "content": "Minimize cost"
+    },
+    {
+      "id": "c2",
+      "type": "constraint",
+      "turn": 1,
+      "label": "Quality ≥ 3 stars",
+      "content": "Quality ≥ 3 stars"
+    },
+    {
+      "id": "c3",
+      "type": "constraint",
+      "turn": 5,
+      "label": "Better reviews preferred",
+      "content": "Better reviews preferred"
+    },
+    {
+      "id": "c4",
+      "type": "constraint",
+      "turn": 5,
+      "label": "Faster shipping preferred",
+      "content": "Faster shipping preferred"
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "turn": 3,
+      "label": "Eliminate Supplier C for failing quality constraint",
+      "content": "Eliminate Supplier C for failing quality constraint"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "turn": 4,
+      "label": "Identify Supplier A as optimal choice",
+      "content": "Identify Supplier A as optimal choice"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "turn": 5,
+      "label": "Choose Supplier B despite higher cost",
+      "content": "Choose Supplier B despite higher cost"
+    },
+    {
+      "id": "g1",
+      "type": "goal",
+      "turn": 1,
+      "label": "Minimize cost while maintaining quality ≥ 3 stars",
+      "content": "Minimize cost while maintaining quality ≥ 3 stars"
+    },
+    {
+      "id": "g2",
+      "type": "goal",
+      "turn": 2,
+      "label": "Find suppliers",
+      "content": "Find suppliers"
+    },
+    {
+      "id": "g3",
+      "type": "goal",
+      "turn": 5,
+      "label": "Obtain better reviews and faster shipping",
+      "content": "Obtain better reviews and faster shipping"
+    },
+    {
+      "id": "e1",
+      "type": "entity",
+      "turn": 3,
+      "label": "Supplier A ($50, 4★)",
+      "content": "Supplier A ($50, 4★)"
+    },
+    {
+      "id": "e2",
+      "type": "entity",
+      "turn": 3,
+      "label": "Supplier B ($200, 5★)",
+      "content": "Supplier B ($200, 5★)"
+    },
+    {
+      "id": "e3",
+      "type": "entity",
+      "turn": 3,
+      "label": "Supplier C ($30, 2★)",
+      "content": "Supplier C ($30, 2★)"
+    },
+    {
+      "id": "a1",
+      "type": "assumption",
+      "turn": 3,
+      "label": "Supplier C fails quality requirement (2★ < 3★)",
+      "content": "Supplier C fails quality requirement (2★ < 3★)"
+    },
+    {
+      "id": "a2",
+      "type": "assumption",
+      "turn": 5,
+      "label": "Supplier B has better reviews than Supplier A",
+      "content": "Supplier B has better reviews than Supplier A"
+    },
+    {
+      "id": "a3",
+      "type": "assumption",
+      "turn": 5,
+      "label": "Supplier B has faster shipping than Supplier A",
+      "content": "Supplier B has faster shipping than Supplier A"
+    },
+    {
+      "id": "a4",
+      "type": "assumption",
+      "turn": 5,
+      "label": "The $150 premium is worth the additional benefits",
+      "content": "The $150 premium is worth the additional benefits"
+    }
+  ],
+  "edges": [
+    {
+      "source": "d1",
+      "target": "c2",
+      "type": "satisfies",
+      "turn": 3
+    },
+    {
+      "source": "d2",
+      "target": "c1",
+      "type": "satisfies",
+      "turn": 4
+    },
+    {
+      "source": "d2",
+      "target": "c2",
+      "type": "satisfies",
+      "turn": 4
+    },
+    {
+      "source": "d3",
+      "target": "c1",
+      "type": "violates",
+      "turn": 5
+    },
+    {
+      "source": "d3",
+      "target": "c2",
+      "type": "satisfies",
+      "turn": 5
+    },
+    {
+      "source": "c1",
+      "target": "d3",
+      "type": "conflict",
+      "turn": 0
+    },
+    {
+      "source": "g1",
+      "target": "g3",
+      "type": "conflict",
+      "turn": 0
+    },
+    {
+      "source": "d2",
+      "target": "d3",
+      "type": "conflict",
+      "turn": 0
+    }
+  ],
+  "trajectory": [
+    {
+      "turn": 1,
+      "internal_consistency": 1.0,
+      "constraint_integrity": 1.0,
+      "relationship_stability": 1.0,
+      "overall_coherence": 1.0
+    },
+    {
+      "turn": 3,
+      "internal_consistency": 1.0,
+      "constraint_integrity": 1.0,
+      "relationship_stability": 1.0,
+      "overall_coherence": 1.0
+    },
+    {
+      "turn": 4,
+      "internal_consistency": 1.0,
+      "constraint_integrity": 1.0,
+      "relationship_stability": 1.0,
+      "overall_coherence": 1.0
+    },
+    {
+      "turn": 5,
+      "internal_consistency": 1.0,
+      "constraint_integrity": 0.75,
+      "relationship_stability": 0.875,
+      "overall_coherence": 0.875
+    }
+  ],
+  "drifts": [
+    {
+      "turn": 5,
+      "constraint_id": "c1",
+      "constraint_content": "Minimize cost",
+      "violating_decision_id": "d3",
+      "decision_content": "Choose Supplier B despite higher cost",
+      "severity": "high",
+      "coherence_drop": 0.125
+    }
+  ],
+  "goal_drifts": [],
+  "decision_conflicts": [
+    {
+      "turn": 5,
+      "decision_a_id": "d2",
+      "decision_b_id": "d3",
+      "tension_type": "conflict",
+      "severity": 0.9
+    }
+  ],
+  "assumption_drifts": [],
+  "instability_alerts": []
+}
