@@ -7,7 +7,7 @@ then is nudged to reconsider and often abandons them.
 
 from typing import Any, Dict, List
 
-from recomo.extractor.claim_extractor import get_openai_compatible_client_and_model
+from recomo.extractor.claim_extractor import get_llm_client_and_model
 from recomo.trace_schema import ReasoningTrace, Turn
 
 
@@ -25,7 +25,7 @@ def run_planning_agent_chain(
     agent reasons and picks, user nudges toward expensive option, agent may drift.
     Returns a ReasoningTrace of the conversation.
     """
-    client, default_model = get_openai_compatible_client_and_model()
+    client, default_model = get_llm_client_and_model()
     effective_model = model if model is not None else default_model
     messages: List[Dict[str, str]] = []
     turns: List[Turn] = []

@@ -3,17 +3,15 @@
 from recomo.extractor.claim_extractor import (
     ClaimExtractor,
     LLMClient,
-    OpenAIClient,
     OpenRouterClient,
     get_default_llm_client,
-    get_openai_compatible_client_and_model,
+    get_llm_client_and_model,
 )
 
 __all__ = [
     "ClaimExtractor",
     "LLMClient",
-    "OpenAIClient",
     "OpenRouterClient",
     "get_default_llm_client",
-    "get_openai_compatible_client_and_model",
+    "get_llm_client_and_model",
 ]

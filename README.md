@@ -85,8 +85,8 @@ git clone https://github.com/your-org/recomo.git
 cd recomo
 pip install -r requirements.txt
 
-# Set your OpenAI API key
-export OPENAI_API_KEY=your-key-here
+# Set your OpenRouter API key
+export OPENROUTER_API_KEY=your-key-here
 
 # Run the demo (from project root)
 python run_demo.py                    # synthetic trace (default)

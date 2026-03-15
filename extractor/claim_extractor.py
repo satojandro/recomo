@@ -1,8 +1,7 @@
 """
 Real LLM-based extraction of relational signals from reasoning traces.
 
-Uses structured output (JSON) for reliability. Client is swappable;
-default is OpenAI or OpenRouter based on RECOMO_LLM_PROVIDER and API keys.
+Uses structured output (JSON) for reliability. Uses OpenRouter for chat completions.
 """
 
 import json
@@ -12,7 +11,7 @@ from typing import TYPE_CHECKING, Any, Dict, Protocol
 from recomo.trace_schema import ReasoningTrace
 
 if TYPE_CHECKING:
-    from openai import OpenAI
+    from openai import OpenAI as _ChatClient
 
 
 class LLMClient(Protocol):
@@ -23,32 +22,8 @@ class LLMClient(Protocol):
         ...
 
 
-class OpenAIClient:
-    """OpenAI client. Uses OPENAI_API_KEY from environment."""
-
-    def __init__(self, model: str = "gpt-4o-mini"):
-        self.model = model
-        self._client = None
-
-    def _get_client(self):
-        if self._client is None:
-            from openai import OpenAI
-            api_key = os.environ.get("OPENAI_API_KEY")
-            if not api_key:
-                raise ValueError("OPENAI_API_KEY environment variable is required for real extraction")
-            self._client = OpenAI(api_key=api_key)
-        return self._client
-
-    def generate(self, prompt: str, *, response_format: Dict[str, str] | None = None) -> str:
-        kwargs = {"model": self.model, "messages": [{"role": "user", "content": prompt}]}
-        if response_format:
-            kwargs["response_format"] = response_format
-        response = self._get_client().chat.completions.create(**kwargs)
-        return response.choices[0].message.content or ""
-
-
 class OpenRouterClient:
-    """OpenRouter client. Uses OPENROUTER_API_KEY from environment; API is OpenAI-compatible."""
+    """OpenRouter client. Uses OPENROUTER_API_KEY from environment."""
 
     def __init__(self, model: str = "openai/gpt-4o-mini"):
         self.model = model
@@ -59,7 +34,7 @@ class OpenRouterClient:
             from openai import OpenAI
             api_key = os.environ.get("OPENROUTER_API_KEY")
             if not api_key:
-                raise ValueError("OPENROUTER_API_KEY environment variable is required for OpenRouter")
+                raise ValueError("OPENROUTER_API_KEY environment variable is required")
             self._client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key)
         return self._client
 
@@ -71,47 +46,28 @@ class OpenRouterClient:
         return response.choices[0].message.content or ""
 
 
-# Cached (client, model) for env-based provider so we reuse one connection.
-_cached_client: "OpenAI | None" = None
+# Cached (client, model) for env-based config so we reuse one connection.
+_cached_client: "_ChatClient | None" = None
 _cached_model: str | None = None
 
 
-def _get_connection_and_model() -> tuple["OpenAI", str]:
-    """Return (OpenAI-compatible client, model) based on RECOMO_LLM_PROVIDER and env keys."""
+def _get_connection_and_model() -> tuple["_ChatClient", str]:
+    """Return (OpenRouter client, model) from OPENROUTER_API_KEY and RECOMO_LLM_MODEL."""
     global _cached_client, _cached_model
     if _cached_client is not None and _cached_model is not None:
         return _cached_client, _cached_model
-    from openai import OpenAI as OpenAIClass
-
-    provider = os.environ.get("RECOMO_LLM_PROVIDER", "").strip().lower()
-    openai_key = os.environ.get("OPENAI_API_KEY")
-    openrouter_key = os.environ.get("OPENROUTER_API_KEY")
-
-    if not provider:
-        if openrouter_key and not openai_key:
-            provider = "openrouter"
-        else:
-            provider = "openai"
-
-    model = (os.environ.get("RECOMO_LLM_MODEL") or "").strip()
-    if not model:
-        model = "gpt-4o-mini" if provider == "openai" else "openai/gpt-4o-mini"
-
-    if provider == "openrouter":
-        if not openrouter_key:
-            raise ValueError("OPENROUTER_API_KEY required when RECOMO_LLM_PROVIDER=openrouter")
-        _cached_client = OpenAIClass(base_url="https://openrouter.ai/api/v1", api_key=openrouter_key)
-    else:
-        if not openai_key:
-            raise ValueError("OPENAI_API_KEY required for real extraction")
-        _cached_client = OpenAIClass(api_key=openai_key)
-
+    from openai import OpenAI
+    api_key = os.environ.get("OPENROUTER_API_KEY")
+    if not api_key:
+        raise ValueError("OPENROUTER_API_KEY environment variable is required")
+    model = (os.environ.get("RECOMO_LLM_MODEL") or "").strip() or "openai/gpt-4o-mini"
+    _cached_client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key)
     _cached_model = model
     return _cached_client, _cached_model
 
 
 class _EnvLLMClient:
-    """LLMClient that uses RECOMO_LLM_PROVIDER and RECOMO_LLM_MODEL from environment."""
+    """LLMClient that uses RECOMO_LLM_MODEL from environment with OpenRouter."""
 
     def generate(self, prompt: str, *, response_format: Dict[str, str] | None = None) -> str:
         client, model = _get_connection_and_model()
@@ -123,12 +79,12 @@ class _EnvLLMClient:
 
 
 def get_default_llm_client() -> LLMClient:
-    """Return an LLMClient configured from RECOMO_LLM_PROVIDER and RECOMO_LLM_MODEL."""
+    """Return an LLMClient configured from RECOMO_LLM_MODEL (OpenRouter)."""
     return _EnvLLMClient()
 
 
-def get_openai_compatible_client_and_model() -> tuple["OpenAI", str]:
-    """Return (OpenAI-compatible client, model) for chat.completions; used by demo and other callers."""
+def get_llm_client_and_model() -> tuple["_ChatClient", str]:
+    """Return (OpenRouter client, model) for chat.completions; used by demo and other callers."""
     return _get_connection_and_model()
 
 
