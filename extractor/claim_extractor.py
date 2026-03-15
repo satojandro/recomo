@@ -6,12 +6,38 @@ Uses structured output (JSON) for reliability. Uses OpenRouter for chat completi
 
 import json
 import os
+import re
 from typing import TYPE_CHECKING, Any, Dict, Protocol
 
 from recomo.trace_schema import ReasoningTrace
 
 if TYPE_CHECKING:
     from openai import OpenAI as _ChatClient
+
+
+def _extract_json_from_response(response: str) -> str | None:
+    """Try to extract a JSON object from response that may be wrapped in prose or markdown."""
+    if not response or not response.strip():
+        return None
+    text = response.strip()
+    # Try markdown code block first: ```json ... ``` or ``` ... ```
+    match = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
+    if match:
+        candidate = match.group(1).strip()
+        if candidate.startswith("{"):
+            return candidate
+    # Fallback: find balanced { ... }
+    start = text.find("{")
+    if start >= 0:
+        depth = 0
+        for i, c in enumerate(text[start:], start):
+            if c == "{":
+                depth += 1
+            elif c == "}":
+                depth -= 1
+                if depth == 0:
+                    return text[start : i + 1]
+    return None
 
 
 class LLMClient(Protocol):
@@ -107,7 +133,16 @@ class ClaimExtractor:
         from recomo.extractor.prompts import EXTRACTION_PROMPT
         prompt = EXTRACTION_PROMPT.format(trace_text=trace_text)
         response = self.llm.generate(prompt, response_format={"type": "json_object"})
+        # Try direct parse first
         try:
             return json.loads(response)
-        except json.JSONDecodeError as e:
-            return {"error": f"Failed to parse extraction: {e}", "raw": response}
+        except json.JSONDecodeError:
+            pass
+        # Fallback: extract JSON from markdown/prose-wrapped response
+        extracted = _extract_json_from_response(response)
+        if extracted:
+            try:
+                return json.loads(extracted)
+            except json.JSONDecodeError:
+                pass
+        return {"error": "Failed to parse extraction: LLM did not return valid JSON", "raw": response[:500]}

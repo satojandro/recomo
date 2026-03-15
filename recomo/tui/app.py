@@ -20,30 +20,54 @@ DEFAULT_SYSTEM_PROMPT = (
     "then reason step by step. Keep your responses concise but complete."
 )
 
-WELCOME_ASCII = r"""
-  ____      ____    __  __     ____
- |  _ \ ___/ ___|  |  \/  |   / ___|___   _ __ ___   __ _ ___  ___
- | |_) / _ \___ \  | |\/| |  | |   / _ \ | '_ ` _ \ / _` / __|/ _ \
- |  _ <  __/___) | | |  | |  | |__| (_) || | | | | | (_| \__ \  __/
- |_| \_\___|____/  |_|  |_|   \____\___/ |_| |_| |_|\__,_|___/\___|
-"""
+# Block-style ASCII logo with cyan styling for visual hierarchy
+WELCOME_ASCII = r"""[bold cyan]██████╗ ███████╗ ██████╗ ██████╗ ███╗   ███╗ ██████╗ 
+██╔══██╗██╔════╝██╔════╝██╔═══██╗████╗ ████║██╔═══██╗
+██████╔╝█████╗  ██║     ██║   ██║██╔████╔██║██║   ██║
+██╔══██╗██╔══╝  ██║     ██║   ██║██║╚██╔╝██║██║   ██║
+██║  ██║███████╗╚██████╗╚██████╔╝██║ ╚═╝ ██║╚██████╔╝
+╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═════╝ ╚═╝     ╚═╝ ╚═════╝
 
-WELCOME_TEXT = """
-[b]What is ReCoMo?[/b]
-ReCoMo (Relational Coherence Monitor) tracks an agent's reasoning over time: goals,
-constraints, decisions, and assumptions. It detects when the agent drifts from its
-own stated constraints or abandons goals—structural failures that output-only
-evaluation misses.
+      Relational Coherence Monitor[/bold cyan]
 
-[b]How is it different?[/b]
-Most tools judge final answers. ReCoMo judges the [i]trajectory[/i]: coherence
-turn-by-turn, constraint integrity, and relationship stability. Drift alerts surface
-the moment reasoning becomes inconsistent.
+[dim][italic]Observe reasoning • Measure coherence • Detect drift[/italic][/dim]
 
-[b]Instructions[/b]
-• Type your message in the input below and press [bold]Enter[/bold].
-• The agent replies; coherence metrics and drift alerts update live on the right.
-• In replay mode (TUI started with a trace file path), the input is hidden.
+
+[bold]What is ReCoMo?[/bold]
+
+ReCoMo tracks how an AI reasons over time.
+
+Instead of scoring only final answers, it monitors the
+relationships inside reasoning:
+
+• Goals
+• Constraints
+• Decisions
+• Assumptions
+
+When those relationships break, ReCoMo raises drift alerts.
+
+
+[bold]Why it matters[/bold]
+
+Most evaluation tools score outputs.
+
+ReCoMo monitors the reasoning trajectory itself —
+surfacing inconsistencies the moment they appear.
+
+
+[bold]Instructions[/bold]
+
+Type a message below and press [bold]Enter[/bold].
+
+The agent replies and ReCoMo updates:
+
+• Coherence metrics
+• Drift alerts
+• Reasoning trajectory
+
+
+[dim]────────────────────────────────────────────────────[/dim]
 """
 
 
@@ -61,9 +85,13 @@ def _turns_to_api_messages(turns: list) -> list:
     return out
 
 
-def _format_conversation(trace: "Any", show_welcome: bool = False) -> str:
+INITIALIZING_MESSAGE = "Initializing relational monitor..."
+
+def _format_conversation(trace: "Any", show_welcome: bool = False, initializing: bool = False) -> str:
+    if initializing:
+        return INITIALIZING_MESSAGE
     if show_welcome:
-        return WELCOME_ASCII + WELCOME_TEXT
+        return WELCOME_ASCII
     if trace is None or not getattr(trace, "turns", None):
         return "No trace loaded. Run with a trace file path or use interactive mode."
     lines = []
@@ -79,9 +107,57 @@ def _format_conversation(trace: "Any", show_welcome: bool = False) -> str:
     return "\n".join(lines) if lines else "No turns."
 
 
+def _format_pipeline_error(report: dict) -> str:
+    """User-friendly message when pipeline/extraction fails."""
+    err = (report or {}).get("error", "Unknown error")
+    if "parse extraction" in err.lower() or "json" in err.lower():
+        return (
+            "Extraction failed: LLM returned invalid JSON.\n\n"
+            "Check OPENROUTER_API_KEY and RECOMO_LLM_MODEL in .env"
+        )
+    return err[:300] if err else "Pipeline error"
+
+
+def _count_drift_alerts(report: dict) -> int:
+    """Total count of all drift-related alerts."""
+    if not report or "error" in report:
+        return 0
+    return (
+        len(report.get("drifts") or [])
+        + len(report.get("goal_drifts") or [])
+        + len(report.get("decision_conflicts") or [])
+        + len(report.get("assumption_drifts") or [])
+        + len(report.get("instability_alerts") or [])
+    )
+
+
+def _format_live_metrics(report: dict) -> str:
+    """Format current turn's coherence metrics and drift count for live display."""
+    if not report or "error" in report:
+        return _format_pipeline_error(report)
+    trajectory = report.get("trajectory") or []
+    if not trajectory:
+        return "No trajectory yet."
+    latest = trajectory[-1]
+    turn = latest.get("turn", "?")
+    overall = latest.get("overall_coherence", 0)
+    consistency = latest.get("internal_consistency", 0)
+    constraint_int = latest.get("constraint_integrity", 0)
+    stability = latest.get("relationship_stability", 0)
+    drift_count = _count_drift_alerts(report)
+    return (
+        f"Turn: {turn}\n"
+        f"Overall:      {overall:.3f}\n"
+        f"Consistency:  {consistency:.3f}\n"
+        f"Constraint:   {constraint_int:.3f}\n"
+        f"Stability:    {stability:.3f}\n"
+        f"Drift:        {drift_count}"
+    )
+
+
 def _format_alerts(report: dict) -> str:
     if not report or "error" in report:
-        return report.get("error", "Error")[:200] if report else "No report."
+        return _format_pipeline_error(report)
     lines = []
     for d in report.get("drifts") or []:
         lines.append(f"Constraint (turn {d.get('turn')}): {d.get('severity', '')} — {(d.get('constraint_content') or '')[:50]}...")
@@ -94,7 +170,7 @@ def _format_alerts(report: dict) -> str:
     for a in report.get("instability_alerts") or []:
         lines.append(f"Instability (turn {a.get('turn')}): stability={a.get('stability', 0):.3f} — {a.get('severity', '')}")
     if not lines:
-        return "No drift alerts."
+        return "No warnings."
     return "\n".join(lines)
 
 
@@ -128,6 +204,12 @@ class ReComoTui(App[None]):
         overflow-y: auto;
         padding: 0 1;
     }
+    #live_metrics {
+        height: auto;
+        min-height: 8;
+        padding: 0 1;
+        border: solid $primary;
+    }
     #metrics {
         height: 10;
         padding: 0 1;
@@ -158,6 +240,7 @@ class ReComoTui(App[None]):
         self._report: dict = {}
         self._interactive_mode = trace_path is None or not Path(trace_path).exists()
         self._show_welcome = self._interactive_mode
+        self._initializing = self._interactive_mode  # Startup animation only in interactive mode
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -168,11 +251,13 @@ class ReComoTui(App[None]):
                     yield Static("Loading...", id="conversation")
                 yield Input(placeholder="Type your message and press Enter to chat...", id="chat_input")
             with Vertical(id="right"):
+                yield Static("Live metrics", classes="panel-title")
+                yield Static("—", id="live_metrics")
                 yield Static("Coherence (per turn)", classes="panel-title")
                 yield DataTable(id="metrics")
-                yield Static("Drift alerts", classes="panel-title")
+                yield Static("Warnings", classes="panel-title")
                 with ScrollableContainer():
-                    yield Static("No alerts.", id="alerts")
+                    yield Static("No warnings.", id="alerts")
 
     def on_mount(self) -> None:
         self.query_one("#metrics", DataTable).add_columns("turn", "overall", "consistency", "constraint_int", "stability")
@@ -180,7 +265,7 @@ class ReComoTui(App[None]):
             self.add_class("replay")
             self.load_trace_from_path(self._trace_path)
         else:
-            # Interactive mode: show welcome, start with system turn only
+            # Interactive mode: show "Initializing..." then welcome after 0.5s
             from recomo.trace_schema import ReasoningTrace, Turn
             self._trace = ReasoningTrace(
                 trace_id="tui_interactive",
@@ -190,6 +275,13 @@ class ReComoTui(App[None]):
             )
             self._report = _run_pipeline(self._trace)
             self._refresh_ui()
+            self.set_timer(0.5, self._show_welcome_screen)
+
+    def _show_welcome_screen(self) -> None:
+        """Called after 0.5s delay: replace 'Initializing...' with full welcome."""
+        self._initializing = False
+        self._show_welcome = True
+        self._refresh_ui()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         if not self._interactive_mode or self._trace is None:
@@ -252,7 +344,10 @@ class ReComoTui(App[None]):
 
     def _refresh_ui(self) -> None:
         conv = self.query_one("#conversation", Static)
-        conv.update(_format_conversation(self._trace, show_welcome=self._show_welcome))
+        conv.update(_format_conversation(self._trace, show_welcome=self._show_welcome, initializing=self._initializing))
+        # Live metrics: real-time values for current turn
+        live = self.query_one("#live_metrics", Static)
+        live.update(_format_live_metrics(self._report))
         dt = self.query_one("#metrics", DataTable)
         dt.clear()
         trajectory = self._report.get("trajectory") or []

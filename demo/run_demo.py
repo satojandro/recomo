@@ -29,6 +29,27 @@ from recomo.simulator import run_scenario
 from recomo.demo.interactive import run_interactive
 
 
+# Minimal extraction when trace has no user/agent turns (e.g. TUI startup).
+# Avoids LLM call that can fail or return prose instead of JSON.
+MINIMAL_EXTRACTION = {
+    "goals": [],
+    "constraints": [],
+    "entities": [],
+    "decisions": [],
+    "assumptions": [],
+    "tensions": [],
+}
+
+
+def _has_extractable_content(trace: ReasoningTrace) -> bool:
+    """True if trace has user/agent turns worth extracting."""
+    for turn in trace.turns:
+        role = (turn.role or "").lower()
+        if role in ("user", "agent") and (turn.content or "").strip():
+            return True
+    return False
+
+
 def load_trace(source: str) -> ReasoningTrace:
     """Load trace from 'synthetic', 'real', or a path to Inspect AI JSON."""
     if source == "synthetic":
@@ -52,8 +73,11 @@ def run_pipeline(
     try:
         if progress_callback:
             progress_callback("Extracting signals", 1, total_steps)
-        extractor = ClaimExtractor()
-        extraction = extractor.extract(trace)
+        if not _has_extractable_content(trace):
+            extraction = MINIMAL_EXTRACTION
+        else:
+            extractor = ClaimExtractor()
+            extraction = extractor.extract(trace)
         if "error" in extraction:
             return {"error": extraction["error"], "raw": extraction.get("raw", "")}
 
