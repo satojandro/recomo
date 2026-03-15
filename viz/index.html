@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ReCoMo — Graph Visualization</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/cytoscape@3/dist/cytoscape.min.js"></script>
+</head>
+<body>
+  <header class="header">
+    <h1>ReCoMo</h1>
+    <p class="tagline">Relational Coherence Monitor</p>
+  </header>
+
+  <main class="main">
+    <section class="graph-section">
+      <div id="graph" class="graph"></div>
+      <div class="graph-legend">
+        <span class="legend-node constraint">Constraint</span>
+        <span class="legend-node goal">Goal</span>
+        <span class="legend-node decision">Decision</span>
+        <span class="legend-node assumption">Assumption</span>
+        <span class="legend-node entity">Entity</span>
+        <span class="legend-edge violates">violates</span>
+        <span class="legend-edge satisfies">satisfies</span>
+        <span class="legend-edge conflict">conflict</span>
+      </div>
+    </section>
+
+    <aside class="sidebar">
+      <div class="coherence-panel">
+        <div class="coherence-value" id="coherenceValue">—</div>
+        <div class="coherence-label">COHERENCE</div>
+        <div class="drift-alert hidden" id="driftAlert">⚠ COHERENCE DROP</div>
+      </div>
+
+      <div class="controls">
+        <label class="slider-label">
+          Turn
+          <input type="range" id="turnSlider" min="1" max="1" value="1" class="slider">
+          <span id="turnDisplay">1</span>
+        </label>
+        <button type="button" id="playBtn" class="btn">Play</button>
+        <button type="button" id="resetBtn" class="btn btn-secondary">Reset</button>
+      </div>
+
+      <div class="trajectory-panel">
+        <h3>Coherence over time</h3>
+        <div id="trajectoryChart" class="trajectory-chart"></div>
+      </div>
+
+      <div class="transcript-panel">
+        <h3>Transcript</h3>
+        <div id="transcript" class="transcript"></div>
+      </div>
+
+      <div class="drifts-panel hidden" id="driftsPanel">
+        <h3>Drift alerts</h3>
+        <div id="driftsList" class="drifts-list"></div>
+      </div>
+    </aside>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

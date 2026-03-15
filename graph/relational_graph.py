@@ -141,6 +141,10 @@ class RelationalGraph:
                 "tension": t,
             })
 
+    def get_nodes(self) -> List[Dict[str, Any]]:
+        """Return all nodes (constraints, decisions, goals, entities, assumptions)."""
+        return list(self._nodes.values())
+
     def get_constraints(self) -> List[Dict[str, Any]]:
         """Return all constraints."""
         return list(self._constraints)

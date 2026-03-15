@@ -20,4 +20,4 @@ dependencies = [
 recomo = "."
 
 [tool.setuptools]
-packages = ["recomo", "recomo.extractor", "recomo.graph", "recomo.checker", "recomo.adapters", "recomo.demo", "recomo.demo.scenarios", "recomo.simulator"]
+packages = ["recomo", "recomo.extractor", "recomo.graph", "recomo.checker", "recomo.adapters", "recomo.demo", "recomo.demo.scenarios", "recomo.simulator", "recomo.viz"]
