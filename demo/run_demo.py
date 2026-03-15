@@ -1,0 +1,125 @@
+"""
+End-to-end ReCoMo pipeline: extract -> graph -> coherence -> drift report.
+
+Usage:
+  python -m recomo.demo.run_demo                  # synthetic trace
+  python -m recomo.demo.run_demo --real           # run real agent chain then analyze
+  python -m recomo.demo.run_demo path/to/inspect.json  # Inspect AI trace file
+"""
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+from recomo.trace_schema import ReasoningTrace
+from recomo.extractor import ClaimExtractor
+from recomo.graph import RelationalGraph
+from recomo.checker import CoherenceTracker, DriftDetector
+from recomo.adapters.inspect_ai import inspect_trace_to_reasoning_trace
+from recomo.demo.traces import PROCUREMENT_TRACE
+from recomo.demo.real_agent_chain import run_planning_agent_chain
+
+
+def load_trace(source: str) -> ReasoningTrace:
+    """Load trace from 'synthetic', 'real', or a path to Inspect AI JSON."""
+    if source == "synthetic":
+        return PROCUREMENT_TRACE
+    if source == "real":
+        return run_planning_agent_chain()
+    path = Path(source)
+    if not path.exists():
+        raise FileNotFoundError(f"Trace file not found: {path}")
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+    return inspect_trace_to_reasoning_trace(data)
+
+
+def run_pipeline(trace: ReasoningTrace) -> dict:
+    """Run extractor -> graph -> coherence tracker -> drift detector. Return report dict."""
+    extractor = ClaimExtractor()
+    extraction = extractor.extract(trace)
+    if "error" in extraction:
+        return {"error": extraction["error"], "raw": extraction.get("raw", "")}
+
+    graph = RelationalGraph()
+    graph.load_extraction(extraction)
+    tracker = CoherenceTracker(graph)
+    tracker.compute_trajectory()
+    detector = DriftDetector(graph, tracker)
+    drifts = detector.detect()
+
+    return {
+        "extraction": extraction,
+        "trajectory": tracker.get_trajectory(),
+        "drifts": drifts,
+    }
+
+
+def print_report(report: dict, trace_source: str) -> None:
+    """Print coherence report to stdout."""
+    if "error" in report:
+        print("EXTRACTION ERROR:", report["error"])
+        if report.get("raw"):
+            print("Raw response (first 500 chars):", report["raw"][:500])
+        return
+
+    extraction = report.get("extraction") or {}
+    trajectory = report.get("trajectory") or []
+    drifts = report.get("drifts") or []
+
+    print("=" * 60)
+    print("ReCoMo — Relational Coherence Monitor")
+    print("=" * 60)
+    print(f"Trace source: {trace_source}")
+    print()
+    print("[EXTRACTED SIGNALS]")
+    for key in ("goals", "constraints", "entities", "decisions", "assumptions"):
+        items = extraction.get(key) or []
+        print(f"  {key}: {len(items)}")
+        for it in items[:3]:
+            print(f"    - {it.get('id', '')}: {str(it.get('content', ''))[:60]}...")
+        if len(items) > 3:
+            print(f"    ... and {len(items) - 3} more")
+    print()
+    print("[COHERENCE TRAJECTORY]")
+    print("  turn | internal_consistency | constraint_integrity | relationship_stability | overall_coherence")
+    for t in trajectory:
+        print(f"  {t['turn']:4} | {t['internal_consistency']:.3f} | {t['constraint_integrity']:.3f} | {t['relationship_stability']:.3f} | {t['overall_coherence']:.3f}")
+    print()
+    print("=" * 60)
+    if drifts:
+        print("ALERT: CONSTRAINT ABANDONMENT / DRIFT DETECTED")
+        for d in drifts:
+            print(f"  Turn {d['turn']}: {d['severity']} severity")
+            print(f"    Constraint: {d['constraint_content'][:70]}...")
+            print(f"    Violated by: {d['decision_content'][:70]}...")
+            print(f"    Coherence drop: {d.get('coherence_drop', 0):.3f}")
+    else:
+        print("No drift detected.")
+    print("=" * 60)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Run ReCoMo coherence pipeline")
+    parser.add_argument(
+        "source",
+        nargs="?",
+        default="synthetic",
+        help="'synthetic' (default), 'real', or path to Inspect AI JSON file",
+    )
+    args = parser.parse_args()
+    source = args.source
+
+    try:
+        trace = load_trace(source)
+    except Exception as e:
+        print("Failed to load trace:", e, file=sys.stderr)
+        sys.exit(1)
+
+    report = run_pipeline(trace)
+    print_report(report, source)
+
+
+if __name__ == "__main__":
+    main()

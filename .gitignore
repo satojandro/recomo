@@ -1,0 +1,15 @@
+# Virtual env and build artifacts
+.venv/
+venv/
+__pycache__/
+*.egg-info/
+*.egg/
+dist/
+build/
+
+# Env and IDE
+.env
+.idea/
+.vscode/
+*.swp
+.DS_Store

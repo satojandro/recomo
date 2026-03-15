@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "recomo"
+version = "0.1.0"
+description = "Relational Coherence Monitor — detect reasoning drift in AI agents"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2.0",
+    "openai>=1.0",
+    "python-dotenv>=1.0",
+]
+
+# Package "recomo" is the project root (no nested recomo/recomo)
+[tool.setuptools.package-dir]
+recomo = "."
+
+[tool.setuptools]
+packages = ["recomo", "recomo.extractor", "recomo.graph", "recomo.checker", "recomo.adapters", "recomo.demo"]
