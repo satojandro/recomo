@@ -4,6 +4,7 @@ End-to-end ReCoMo pipeline: extract -> graph -> coherence -> drift report.
 Usage:
   python -m recomo.demo.run_demo                  # synthetic trace
   python -m recomo.demo.run_demo --real           # run real agent chain then analyze
+  python -m recomo.demo.run_demo --simulate path  # run scenario then analyze
   python -m recomo.demo.run_demo path/to/inspect.json  # Inspect AI trace file
 """
 
@@ -21,6 +22,7 @@ from recomo.checker import CoherenceTracker, DriftDetector
 from recomo.adapters.inspect_ai import inspect_trace_to_reasoning_trace
 from recomo.demo.traces import PROCUREMENT_TRACE
 from recomo.demo.real_agent_chain import run_planning_agent_chain
+from recomo.simulator import run_scenario
 
 
 def load_trace(source: str) -> ReasoningTrace:
@@ -172,16 +174,29 @@ def main() -> None:
         default="synthetic",
         help="'synthetic' (default), 'real', or path to Inspect AI JSON file",
     )
+    parser.add_argument(
+        "--simulate",
+        metavar="SCENARIO",
+        help="Run scenario (JSON path) then analyze; overrides source",
+    )
     args = parser.parse_args()
-    source = args.source
 
-    try:
-        trace = load_trace(source)
-    except Exception as e:
-        print("Failed to load trace:", e, file=sys.stderr)
-        sys.exit(1)
+    if args.simulate is not None:
+        try:
+            trace = run_scenario(Path(args.simulate))
+            source = f"simulate:{args.simulate}"
+        except Exception as e:
+            print("Failed to run scenario:", e, file=sys.stderr)
+            sys.exit(1)
+    else:
+        source = args.source
+        try:
+            trace = load_trace(source)
+        except Exception as e:
+            print("Failed to load trace:", e, file=sys.stderr)
+            sys.exit(1)
 
-    if source == "real":
+    if source == "real" or (args.simulate is not None):
         print("--- ReCoMo analysis ---")
         print()
         sys.stdout.flush()
