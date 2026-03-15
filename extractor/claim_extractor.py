@@ -35,7 +35,7 @@ class OpenRouterClient:
             api_key = os.environ.get("OPENROUTER_API_KEY")
             if not api_key:
                 raise ValueError("OPENROUTER_API_KEY environment variable is required")
-            self._client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key)
+            self._client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key, timeout=120.0)
         return self._client
 
     def generate(self, prompt: str, *, response_format: Dict[str, str] | None = None) -> str:
@@ -61,7 +61,7 @@ def _get_connection_and_model() -> tuple["_ChatClient", str]:
     if not api_key:
         raise ValueError("OPENROUTER_API_KEY environment variable is required")
     model = (os.environ.get("RECOMO_LLM_MODEL") or "").strip() or "openai/gpt-4o-mini"
-    _cached_client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key)
+    _cached_client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key, timeout=120.0)
     _cached_model = model
     return _cached_client, _cached_model
 

@@ -39,23 +39,26 @@ def load_trace(source: str) -> ReasoningTrace:
 
 def run_pipeline(trace: ReasoningTrace) -> dict:
     """Run extractor -> graph -> coherence tracker -> drift detector. Return report dict."""
-    extractor = ClaimExtractor()
-    extraction = extractor.extract(trace)
-    if "error" in extraction:
-        return {"error": extraction["error"], "raw": extraction.get("raw", "")}
+    try:
+        extractor = ClaimExtractor()
+        extraction = extractor.extract(trace)
+        if "error" in extraction:
+            return {"error": extraction["error"], "raw": extraction.get("raw", "")}
 
-    graph = RelationalGraph()
-    graph.load_extraction(extraction)
-    tracker = CoherenceTracker(graph)
-    tracker.compute_trajectory()
-    detector = DriftDetector(graph, tracker)
-    drifts = detector.detect()
+        graph = RelationalGraph()
+        graph.load_extraction(extraction)
+        tracker = CoherenceTracker(graph)
+        tracker.compute_trajectory()
+        detector = DriftDetector(graph, tracker)
+        drifts = detector.detect()
 
-    return {
-        "extraction": extraction,
-        "trajectory": tracker.get_trajectory(),
-        "drifts": drifts,
-    }
+        return {
+            "extraction": extraction,
+            "trajectory": tracker.get_trajectory(),
+            "drifts": drifts,
+        }
+    except Exception as e:
+        return {"error": str(e), "raw": ""}
 
 
 def print_report(report: dict, trace_source: str) -> None:
@@ -64,6 +67,7 @@ def print_report(report: dict, trace_source: str) -> None:
         print("EXTRACTION ERROR:", report["error"])
         if report.get("raw"):
             print("Raw response (first 500 chars):", report["raw"][:500])
+        sys.stdout.flush()
         return
 
     extraction = report.get("extraction") or {}
@@ -122,6 +126,7 @@ def print_report(report: dict, trace_source: str) -> None:
     else:
         print("No drift detected.")
     print("=" * 60)
+    sys.stdout.flush()
 
 
 def main() -> None:
