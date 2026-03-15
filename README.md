@@ -92,6 +92,7 @@ export OPENROUTER_API_KEY=your-key-here
 python run_demo.py                    # synthetic trace (default)
 python run_demo.py real               # real agent chain (may drift)
 python run_demo.py --simulate demo/scenarios/procurement_nudge.json  # run scenario then analyze
+python run_demo.py --interactive      # human ↔ agent, live metrics and drift alerts
 python run_demo.py path/to/trace.json # Inspect AI trace file
 ```
 
@@ -102,7 +103,43 @@ pip install -e .
 python -m recomo.demo                 # synthetic
 python -m recomo.demo real            # real agent chain
 python -m recomo.demo --simulate demo/scenarios/procurement_nudge.json  # scenario
+python -m recomo.demo.run_demo --interactive   # interactive mode
 ```
+
+---
+
+## Interactive mode (Stage 2)
+
+Chat with the agent in the terminal and see **live coherence metrics and drift alerts** after each reply.
+
+```bash
+python -m recomo.demo.run_demo --interactive
+```
+
+- You are prompted once for an optional task/context and optional system prompt (Enter to use defaults).
+- Then type your message and press Enter; the agent replies. After each reply, ReCoMo runs the pipeline on the full conversation and prints:
+  - **Live metrics**: last-turn coherence (overall, consistency, constraint integrity, stability).
+  - **Drift alerts**: any constraint or goal drift detected so far.
+- Type `quit`, `exit`, or `q` to end the session.
+
+The same pipeline (extract → graph → coherence → drift) runs on the accumulated trace each time; no TUI, just terminal I/O.
+
+---
+
+## Graph visualization demo
+
+View the **relational graph** (goals, constraints, decisions, tensions) and **coherence trajectory** in the browser. Export the pipeline result to static JSON, then open the viz page (no backend server required).
+
+```bash
+# From project root (requires OPENROUTER_API_KEY for extraction)
+python -m recomo.viz.export_demo              # synthetic trace
+python -m recomo.viz.export_demo path/to.json  # Inspect AI trace file
+
+# Then open viz/index.html (or serve the viz folder with a static server)
+# e.g. from viz/: python -m http.server 8080  then open http://localhost:8080
+```
+
+Use the **Turn** slider or **Play** to replay the conversation; the graph and coherence update by turn. Drift alerts appear when coherence drops.
 
 ---
 
@@ -219,6 +256,7 @@ recomo/
 ├── simulator/            # run_scenario() for multi-scenario simulation
 ├── demo/                 # Traces, real agent chain, run_demo
 │   └── scenarios/        # Scenario JSONs (schema, procurement_nudge, etc.)
+├── viz/                  # Graph visualization (export_demo, index.html, script.js)
 ├── run_demo.py           # Run from project root without installing
 ├── demo.ipynb
 ├── docs/architecture.md

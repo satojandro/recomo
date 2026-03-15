@@ -5,6 +5,7 @@ Usage:
   python -m recomo.demo.run_demo                  # synthetic trace
   python -m recomo.demo.run_demo --real           # run real agent chain then analyze
   python -m recomo.demo.run_demo --simulate path  # run scenario then analyze
+  python -m recomo.demo.run_demo --interactive   # human ↔ agent, live metrics
   python -m recomo.demo.run_demo path/to/inspect.json  # Inspect AI trace file
 """
 
@@ -25,6 +26,7 @@ from recomo.adapters.inspect_ai import inspect_trace_to_reasoning_trace
 from recomo.demo.traces import PROCUREMENT_TRACE
 from recomo.demo.real_agent_chain import run_planning_agent_chain
 from recomo.simulator import run_scenario
+from recomo.demo.interactive import run_interactive
 
 
 def load_trace(source: str) -> ReasoningTrace:
@@ -209,7 +211,17 @@ def main() -> None:
         metavar="SCENARIO",
         help="Run scenario (JSON path) then analyze; overrides source",
     )
+    parser.add_argument(
+        "--interactive",
+        action="store_true",
+        help="Run interactive mode: human ↔ agent with live metrics and drift alerts",
+    )
     args = parser.parse_args()
+
+    if args.interactive:
+        load_dotenv()
+        run_interactive()
+        return
 
     if args.simulate is not None:
         try:
