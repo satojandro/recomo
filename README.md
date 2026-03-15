@@ -141,6 +141,21 @@ python -m recomo.viz.export_demo path/to.json  # Inspect AI trace file
 
 Use the **Turn** slider or **Play** to replay the conversation; the graph and coherence update by turn. Drift alerts appear when coherence drops.
 
+### Live mode (graph updates as you chat)
+
+Run an interactive session that overwrites `viz/demo_output.json` after each exchange. Open the viz page with `?live=1` to poll and see the graph evolve in real time.
+
+```bash
+# Terminal 1: start live session
+python -m recomo.demo.run_demo --live-viz
+
+# Terminal 2: serve viz and open in browser
+cd viz && python -m http.server 8080
+# Open http://localhost:8080?live=1
+```
+
+Chat in the terminal; the graph in the browser updates automatically every ~1.5 seconds.
+
 ---
 
 ## Custom scenarios (multi-scenario simulation)

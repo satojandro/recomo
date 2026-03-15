@@ -138,6 +138,23 @@ body {
 .drift-alert.hidden {
   display: none;
 }
+.live-badge {
+  margin-top: 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.15em;
+}
+.live-badge.hidden {
+  display: none;
+}
+.live-badge.pulse {
+  animation: live-pulse 0.5s ease-out;
+}
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.1); }
+}
 
 .controls {
   display: flex;
@@ -182,6 +199,39 @@ body {
 }
 .btn-secondary:hover {
   background: #36363d;
+}
+
+.node-detail-panel {
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+.node-detail-panel.hidden {
+  display: none;
+}
+.node-detail-panel h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+.node-detail-type {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 0.5rem;
+}
+.node-detail-content {
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 180px;
+  overflow-y: auto;
 }
 
 .trajectory-panel,

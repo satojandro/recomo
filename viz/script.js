@@ -36,6 +36,7 @@
   const trajectoryChart = document.getElementById("trajectoryChart");
   const driftsPanel = document.getElementById("driftsPanel");
   const driftsList = document.getElementById("driftsList");
+  const liveBadge = document.getElementById("liveBadge");
 
   function getDriftTurns() {
     if (!data) return new Set();
@@ -56,6 +57,7 @@
         label: n.label || n.id,
         type: n.type,
         turn: n.turn != null ? n.turn : 0,
+        content: n.content || "",
       },
     }));
     const edges = data.edges.map((e, i) => ({
@@ -72,6 +74,7 @@
       {
         selector: "node",
         style: {
+          "cursor": "pointer",
           label: "data(label)",
           "text-valign": "bottom",
           "text-halign": "center",
@@ -109,6 +112,26 @@
       layout: { name: "cose", animate: false },
       minZoom: 0.2,
       maxZoom: 3,
+    });
+
+    cy.on("tap", "node", (evt) => {
+      const node = evt.target;
+      const type = node.data("type");
+      const content = node.data("content") || "";
+      const typeEl = document.getElementById("nodeDetailType");
+      const contentEl = document.getElementById("nodeDetailContent");
+      const panel = document.getElementById("nodeDetailPanel");
+      if (typeEl && contentEl && panel) {
+        typeEl.textContent = type ? type.charAt(0).toUpperCase() + type.slice(1) : "";
+        contentEl.textContent = content;
+        panel.classList.remove("hidden");
+      }
+    });
+    cy.on("tap", (evt) => {
+      if (evt.target === cy) {
+        const panel = document.getElementById("nodeDetailPanel");
+        if (panel) panel.classList.add("hidden");
+      }
     });
 
     updateTurnFilter();
@@ -273,21 +296,79 @@
     renderDrifts();
   }
 
-  function init() {
-    fetch("demo_output.json")
+  function isLiveMode() {
+    return new URLSearchParams(window.location.search).get("live") === "1";
+  }
+
+  function applyPayload(payload) {
+    data = payload;
+    const turns = (data.trace && data.trace.turns) || [];
+    maxTurn = turns.length ? Math.max(...turns.map((t) => t.turn_number)) : 1;
+    turnSlider.min = 1;
+    turnSlider.max = maxTurn;
+    turnSlider.value = maxTurn;
+    currentTurn = maxTurn;
+    turnDisplay.textContent = String(currentTurn);
+
+    renderTranscript();
+    renderTrajectory();
+    renderDrifts();
+    if (cy) {
+      cy.destroy();
+      cy = null;
+    }
+    const nodePanel = document.getElementById("nodeDetailPanel");
+    if (nodePanel) nodePanel.classList.add("hidden");
+    initCytoscape();
+    updateCoherence();
+    updateDriftAlert();
+    updateTranscript();
+  }
+
+  function fetchAndApply() {
+    const url = "demo_output.json?t=" + Date.now();
+    fetch(url)
       .then((r) => {
         if (!r.ok) throw new Error(r.statusText);
         return r.json();
       })
       .then((payload) => {
-        data = payload;
-        const turns = (data.trace && data.trace.turns) || [];
+        const turns = (payload.trace && payload.trace.turns) || [];
+        const newLen = turns.length;
+        const curLen = (data && data.trace && data.trace.turns) ? data.trace.turns.length : 0;
+        if (newLen !== curLen || JSON.stringify(payload.trace) !== JSON.stringify(data && data.trace)) {
+          applyPayload(payload);
+          if (liveBadge) {
+            liveBadge.classList.add("pulse");
+            setTimeout(() => liveBadge.classList.remove("pulse"), 500);
+          }
+        }
+      })
+      .catch(() => {});
+  }
+
+  function init() {
+    const live = isLiveMode();
+    if (live) {
+      const controls = document.querySelector(".controls");
+      if (controls) controls.style.display = "none";
+      if (liveBadge) liveBadge.classList.remove("hidden");
+    }
+    const url = "demo_output.json" + (live ? "?t=" + Date.now() : "");
+    fetch(url)
+      .then((r) => {
+        if (!r.ok) throw new Error(r.statusText);
+        return r.json();
+      })
+      .then((payload) => {
+        const turns = (payload.trace && payload.trace.turns) || [];
         maxTurn = turns.length ? Math.max(...turns.map((t) => t.turn_number)) : 1;
         turnSlider.min = 1;
         turnSlider.max = maxTurn;
-        turnSlider.value = 1;
-        currentTurn = 1;
-        turnDisplay.textContent = "1";
+        turnSlider.value = live ? maxTurn : 1;
+        currentTurn = live ? maxTurn : 1;
+        turnDisplay.textContent = String(currentTurn);
+        data = payload;
 
         renderTranscript();
         renderTrajectory();
@@ -300,6 +381,10 @@
         turnSlider.addEventListener("input", onSliderInput);
         playBtn.addEventListener("click", play);
         resetBtn.addEventListener("click", reset);
+
+        if (live) {
+          setInterval(fetchAndApply, 1500);
+        }
       })
       .catch((err) => {
         coherenceValue.textContent = "—";

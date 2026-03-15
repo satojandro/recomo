@@ -102,6 +102,20 @@ def _serialize_trace(trace) -> dict:
     }
 
 
+def export_report_and_trace(report: dict, trace, out_path: Path | None = None) -> Path:
+    """
+    Serialize report + trace to JSON and write to out_path (default: viz/demo_output.json).
+    Used by live_session to overwrite the file after each turn.
+    Returns the path written.
+    """
+    payload = serialize_payload(report, trace)
+    if out_path is None:
+        out_path = Path(__file__).resolve().parent / "demo_output.json"
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2, ensure_ascii=False)
+    return out_path
+
+
 def main() -> None:
     load_dotenv()
 

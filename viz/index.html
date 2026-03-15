@@ -32,6 +32,7 @@
       <div class="coherence-panel">
         <div class="coherence-value" id="coherenceValue">—</div>
         <div class="coherence-label">COHERENCE</div>
+        <div class="live-badge hidden" id="liveBadge">LIVE ●</div>
         <div class="drift-alert hidden" id="driftAlert">⚠ COHERENCE DROP</div>
       </div>
 
@@ -43,6 +44,12 @@
         </label>
         <button type="button" id="playBtn" class="btn">Play</button>
         <button type="button" id="resetBtn" class="btn btn-secondary">Reset</button>
+      </div>
+
+      <div class="node-detail-panel hidden" id="nodeDetailPanel">
+        <h3>Node details</h3>
+        <div class="node-detail-type" id="nodeDetailType"></div>
+        <div class="node-detail-content" id="nodeDetailContent"></div>
       </div>
 
       <div class="trajectory-panel">

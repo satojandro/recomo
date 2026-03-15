@@ -216,11 +216,21 @@ def main() -> None:
         action="store_true",
         help="Run interactive mode: human ↔ agent with live metrics and drift alerts",
     )
+    parser.add_argument(
+        "--live-viz",
+        action="store_true",
+        help="Run live session: interactive + overwrite viz/demo_output.json for real-time graph updates",
+    )
     args = parser.parse_args()
 
     if args.interactive:
         load_dotenv()
         run_interactive()
+        return
+
+    if args.live_viz:
+        from recomo.demo.live_session import run_live_session
+        run_live_session()
         return
 
     if args.simulate is not None:
