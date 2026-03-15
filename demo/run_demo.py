@@ -74,11 +74,33 @@ def print_report(report: dict, trace_source: str) -> None:
     print(f"Trace source: {trace_source}")
     print()
     print("[EXTRACTED SIGNALS]")
-    for key in ("goals", "constraints", "entities", "decisions", "assumptions"):
+    for key in ("goals", "constraints", "entities", "decisions", "assumptions", "tensions"):
         items = extraction.get(key) or []
         print(f"  {key}: {len(items)}")
         for it in items[:3]:
-            print(f"    - {it.get('id', '')}: {str(it.get('content', ''))[:60]}...")
+            if key == "tensions":
+                line = f"    - {it.get('element_a_id') or it.get('element_a', '')} <-> {it.get('element_b_id') or it.get('element_b', '')}: {it.get('tension_type', '')} (severity={it.get('severity')})"
+            else:
+                line = f"    - {it.get('id', '')}: {str(it.get('content', ''))[:60]}..."
+                if key == "goals" and "connection_strength" in it:
+                    line += f" (connection_strength={it.get('connection_strength')})"
+                elif key == "constraints" and ("is_hard" in it or "tension_level" in it):
+                    extras = []
+                    if "is_hard" in it:
+                        extras.append(f"is_hard={it.get('is_hard')}")
+                    if "tension_level" in it:
+                        extras.append(f"tension_level={it.get('tension_level')}")
+                    if extras:
+                        line += " [" + ", ".join(extras) + "]"
+                elif key == "assumptions" and ("uncertainty_if_wrong" in it or "is_verified" in it):
+                    extras = []
+                    if "uncertainty_if_wrong" in it:
+                        extras.append(f"uncertainty_if_wrong={it.get('uncertainty_if_wrong')}")
+                    if "is_verified" in it:
+                        extras.append(f"is_verified={it.get('is_verified')}")
+                    if extras:
+                        line += " [" + ", ".join(str(x) for x in extras) + "]"
+            print(line)
         if len(items) > 3:
             print(f"    ... and {len(items) - 3} more")
     print()

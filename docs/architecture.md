@@ -69,26 +69,32 @@ class ReasoningTrace(BaseModel):
 
 ### Extraction Output
 
+The LLM extractor returns JSON with goals, constraints, entities, decisions, assumptions, and tensions. Shared fields: `id`, `content`, `turn`, `status` (active | satisfied | violated | abandoned). Extra fields capture binding strength, constraint alignment, and tensions:
+
 ```python
 extraction = {
     "goals": [
-        {"id": "goal_1", "content": "...", "turn": 1, "status": "active"}
+        {"id": "goal_1", "content": "...", "turn": 1, "status": "active",
+         "connection_strength": 0.72}
     ],
     "constraints": [
         {"id": "constraint_cost", "content": "minimize cost", "turn": 1,
-         "status": "active", "binding_strength": 0.8}
+         "status": "active", "is_hard": True, "tension_level": 0.3}
     ],
     "entities": [
-        {"id": "supplier_a", "content": "Supplier A", "turn": 3,
-         "attributes": {"cost": 50, "quality": 4}}
+        {"id": "supplier_a", "content": "Supplier A", "turn": 3, "status": "active"}
     ],
     "decisions": [
         {"id": "decision_1", "content": "Choosing Supplier B", "turn": 5,
-         "affects": ["constraint_cost"]}
+         "status": "violated",
+         "constraint_alignment": ["violates:constraint_cost", "satisfies:constraint_quality"]}
     ],
     "assumptions": [
         {"id": "assumption_1", "content": "Shipping times are comparable",
-         "turn": 3, "status": "active"}
+         "turn": 3, "status": "active", "uncertainty_if_wrong": 0.4, "is_verified": False}
+    ],
+    "tensions": [
+        {"element_a_id": "goal_1", "element_b_id": "constraint_time", "tension_type": "tradeoff", "severity": 0.65}
     ]
 }
 ```
@@ -106,7 +112,7 @@ class Node:
 class Edge:
     source: str  # node id
     target: str  # node id
-    type: str    # "supports" | "contradicts" | "depends_on" | "satisfies" | "violates"
+    type: str    # "supports" | "contradicts" | "depends_on" | "satisfies" | "violates" | "conflict" | "tradeoff" | "ambiguity"
     weight: float
 
 class RelationalGraph:

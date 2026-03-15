@@ -27,40 +27,27 @@ This is your **contract**. Everything else flows from here.
 
 ### 2. Extraction Prompt Template (20 min)
 
+The extractor produces structured JSON with goals, constraints, entities, decisions, assumptions, and tensions. Each element has `id`, `content`, `turn`, `status`. Additional fields capture nuance:
+
+- **Goals:** `connection_strength` (0.0–1.0) — how strongly reinforced by other elements.
+- **Constraints:** `is_hard` (bool), `tension_level` (0.0–1.0).
+- **Decisions:** `constraint_alignment` — list of e.g. `"satisfies:constraint_a"`, `"violates:constraint_b"`.
+- **Assumptions:** `uncertainty_if_wrong` (0.0–1.0), `is_verified` (bool).
+- **Tensions:** top-level array of pairs: `element_a_id`, `element_b_id`, `tension_type` (conflict | tradeoff | ambiguity), `severity` (0.0–1.0).
+- **Entities:** `status` is optional (use `"active"` if unsure); other element types use status as above.
+
 ```python
-# extractor/prompts.py
+# extractor/prompts.py — see full EXTRACTION_PROMPT in that file.
 
-EXTRACTION_PROMPT = """
-You are a relational signal extractor. Analyze the agent reasoning trace below.
-
-Extract the following elements:
-
-GOALS: What the agent is trying to accomplish
-CONSTRAINTS: Rules, limitations, or criteria the agent must respect
-ENTITIES: Objects, people, systems, or options mentioned
-DECISIONS: Choices or conclusions the agent reaches
-ASSUMPTIONS: Things the agent takes as given without verification
-
-For each element, provide:
-- id: short identifier (e.g., "goal_1", "constraint_cost")
-- content: the actual text
-- turn: which turn number it appeared in
-- status: active | satisfied | violated | abandoned
-
-Output as valid JSON with this structure:
+# Output JSON structure:
 {
-  "goals": [...],
-  "constraints": [...],
-  "entities": [...],
-  "decisions": [...],
-  "assumptions": [...]
+  "goals": [{"id": "...", "content": "...", "turn": N, "status": "...", "connection_strength": 0.X}],
+  "constraints": [{"id": "...", "content": "...", "turn": N, "status": "...", "is_hard": true|false, "tension_level": 0.X}],
+  "entities": [{"id": "...", "content": "...", "turn": N, "status": "..."}],
+  "decisions": [{"id": "...", "content": "...", "turn": N, "status": "...", "constraint_alignment": ["satisfies:...", "violates:..."]}],
+  "assumptions": [{"id": "...", "content": "...", "turn": N, "status": "...", "uncertainty_if_wrong": 0.X, "is_verified": true|false}],
+  "tensions": [{"element_a_id": "...", "element_b_id": "...", "tension_type": "conflict|tradeoff|ambiguity", "severity": 0.X}]
 }
-
-REASONING TRACE:
-{trace_text}
-
-Extract now:
-"""
 ```
 
 ---
