@@ -28,7 +28,7 @@ def load_trace(source: str) -> ReasoningTrace:
     if source == "synthetic":
         return PROCUREMENT_TRACE
     if source == "real":
-        return run_planning_agent_chain()
+        return run_planning_agent_chain(print_live=True)
     path = Path(source)
     if not path.exists():
         raise FileNotFoundError(f"Trace file not found: {path}")
@@ -146,6 +146,11 @@ def main() -> None:
     except Exception as e:
         print("Failed to load trace:", e, file=sys.stderr)
         sys.exit(1)
+
+    if source == "real":
+        print("--- ReCoMo analysis ---")
+        print()
+        sys.stdout.flush()
 
     report = run_pipeline(trace)
     print_report(report, source)
