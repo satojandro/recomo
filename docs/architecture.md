@@ -1,57 +1,44 @@
 # ReCoMo Architecture
 
-## Overview
+ReCoMo monitors the **structural evolution of reasoning**.
 
-ReCoMo implements a **semantic → relational signal bridge** for AI agent evaluation. It transforms natural language reasoning into structured signals that can be tracked for coherence over time.
+Instead of evaluating final answers, it tracks the **trajectory of reasoning relationships**.
 
-**Pipeline (high level):**
+---
+
+# Pipeline
 
 ```
-Trace
+trace
   ↓
-Semantic Extraction (LLM)
+extraction
   ↓
-Relational Graph
+relational graph
   ↓
-Coherence Metrics
+coherence metrics
   ↓
-Drift Detection
+drift detection
 ```
 
 ---
 
-## Core Concepts
+# Reasoning Trace
 
-### Relational Structure
+A trace is a sequence of turns:
 
-Reasoning is not just text — it's a web of relationships:
+```
+Turn {
+  turn_number
+  role
+  content
+}
+```
 
-- **Goals** relate to **decisions** (pursued / abandoned)
-- **Constraints** relate to **decisions** (satisfied / violated)
-- **Entities** relate to each other (supports / contradicts / depends_on)
-- **Assertions** relate to each other (consistent / contradictory)
+Example flow:
 
-When these relationships break, coherence collapses.
-
-### Coherence
-
-Coherence is the degree to which an agent's reasoning maintains internal consistency and respects its own stated constraints.
-
-High coherence: The agent says what it means and does what it says.
-
-Low coherence: The agent contradicts itself, abandons constraints, or makes decisions that conflict with earlier reasoning.
-
-### Drift
-
-Drift is the moment when coherence drops. It's not just "the agent made a mistake" — it's "the agent's reasoning structure became incoherent."
-
-ReCoMo detects drift by tracking coherence turn-by-turn and identifying where it collapses.
-
----
-
-## Data Structures
-
-### Input: ReasoningTrace
+```
+system → user → assistant → user → assistant
+```
 
 ```python
 class Turn(BaseModel):
@@ -67,41 +54,42 @@ class ReasoningTrace(BaseModel):
     turns: List[Turn]
 ```
 
-### Extraction Output
+---
 
-The LLM extractor returns JSON with goals, constraints, entities, decisions, assumptions, and tensions. Shared fields: `id`, `content`, `turn`, `status` (active | satisfied | violated | abandoned). Extra fields capture binding strength, constraint alignment, and tensions:
+# Extraction
 
-```python
-extraction = {
-    "goals": [
-        {"id": "goal_1", "content": "...", "turn": 1, "status": "active",
-         "connection_strength": 0.72}
-    ],
-    "constraints": [
-        {"id": "constraint_cost", "content": "minimize cost", "turn": 1,
-         "status": "active", "is_hard": True, "tension_level": 0.3}
-    ],
-    "entities": [
-        {"id": "supplier_a", "content": "Supplier A", "turn": 3, "status": "active"}
-    ],
-    "decisions": [
-        {"id": "decision_1", "content": "Choosing Supplier B", "turn": 5,
-         "status": "violated",
-         "constraint_alignment": ["violates:constraint_cost", "satisfies:constraint_quality"]}
-    ],
-    "assumptions": [
-        {"id": "assumption_1", "content": "Shipping times are comparable",
-         "turn": 3, "status": "active", "uncertainty_if_wrong": 0.4, "is_verified": False}
-    ],
-    "tensions": [
-        {"element_a_id": "goal_1", "element_b_id": "constraint_time", "tension_type": "tradeoff", "severity": 0.65}
-    ]
-}
+An LLM extracts reasoning structures from each turn.
+
+**Entities:**
+
+- Goals
+- Constraints
+- Decisions
+- Assumptions
+
+These become graph nodes. Each element has: `id`, `content`, `turn`, `status` (active | satisfied | violated | abandoned).
+
+---
+
+# Relational Graph
+
+The reasoning graph models dependencies.
+
+Example:
+
+```
+Goal
+  ↑
+Decision
+  ↑
+Assumption
 ```
 
-### Relational Graph
+Conflicts or violations create edges like:
 
-The implementation uses a `RelationalGraph` that holds nodes (as dicts) and edges. Conceptually:
+```
+decision ──violates──> constraint
+```
 
 ```python
 class Node:
@@ -110,36 +98,55 @@ class Node:
     payload: dict
 
 class Edge:
-    source: str  # node id
-    target: str  # node id
-    type: str    # "supports" | "contradicts" | "depends_on" | "satisfies" | "violates" | "conflict" | "tradeoff" | "ambiguity"
+    source: str
+    target: str
+    type: str  # "supports" | "violates" | "depends_on" | "conflicts_with" | ...
     weight: float
-
-class RelationalGraph:
-    nodes: Dict[str, Node]
-    edges: List[Edge]
-
-    def get_constraints() -> List[Node]
-    def get_decisions_by_turn(turn: int) -> List[Node]
-    def get_contradictions() -> List[Tuple[Node, Node, Edge]]
 ```
 
-### Coherence Metrics
+---
+
+# Coherence Metrics
+
+From the graph we compute:
+
+### Overall Coherence
+
+Global structural consistency (weighted combination of sub-metrics).
+
+### Internal Consistency
+
+Compatibility of decisions — do assertions align with each other?
+
+### Constraint Integrity
+
+Whether decisions violate stated constraints.
+
+### Relationship Stability
+
+How stable the reasoning graph is over time.
 
 ```python
 class CoherenceScore(BaseModel):
     turn: int
-    internal_consistency: float  # 0.0 - 1.0
+    internal_consistency: float   # 0.0 - 1.0
     constraint_integrity: float   # 0.0 - 1.0
     overall_coherence: float      # 0.0 - 1.0
-
-# Formula (documented):
-# overall_coherence = 0.5 * internal_consistency + 0.5 * constraint_integrity
-#
-# (The implementation may add a third term, e.g. relationship_stability, for finer-grained scoring.)
 ```
 
-### Drift Event
+---
+
+# Drift Detection
+
+ReCoMo detects several failure modes:
+
+| Drift Type | Description |
+|------------|-------------|
+| Constraint Drift | constraints violated |
+| Goal Drift | goals abandoned |
+| Decision Conflict | incompatible decisions |
+| Assumption Drift | assumptions invalidated |
+| Instability | rapid structural change |
 
 ```python
 class DriftEvent(BaseModel):
@@ -154,141 +161,45 @@ class DriftEvent(BaseModel):
 
 ---
 
-## Pipeline
+# Interfaces
 
-```
-1. INPUT
-   ReasoningTrace (native) or Inspect AI sample (via adapter)
+ReCoMo exposes three interfaces:
 
-2. EXTRACTION
-   LLM processes trace, outputs structured JSON
-   Prompt captures: goals, constraints, entities, decisions, assumptions
-   Each element has: id, content, turn, status
-
-3. GRAPH BUILDING
-   Extraction → nodes and edges
-   Constraints linked to decisions they affect
-   Entities linked by relationships
-
-4. COHERENCE COMPUTATION
-   For each turn:
-     - Check internal consistency (assertion contradictions)
-     - Check constraint integrity (violations)
-     - Compute overall coherence
-   Build trajectory list
-
-5. DRIFT DETECTION
-   Identify turns where coherence drops
-   Link drop to specific constraint + decision
-   Assess severity
-
-6. OUTPUT
-   CoherenceReport:
-     - extraction summary
-     - coherence trajectory
-     - drift events with evidence
-```
+| Interface | Purpose |
+|-----------|---------|
+| TUI | live reasoning monitoring |
+| Replay | offline trace analysis |
+| Graph Viz | visual reasoning graph |
 
 ---
 
-## LLM Integration
+# Design Principles
 
-### Extraction Prompt Design
+ReCoMo focuses on **trajectory evaluation**.
 
-The extraction prompt should:
+Key ideas:
 
-1. **Ask for implicit constraints** — not just stated ones
-2. **Capture binding strength** — how hard is this constraint?
-3. **Identify trade-offs** — where is the agent balancing competing goals?
-4. **Track status changes** — when does a constraint become abandoned?
-
-Example prompt structure:
-
-```
-Analyze this agent reasoning trace. Extract:
-
-GOALS: What the agent is trying to accomplish
-  - Include implicit goals, not just stated ones
-  - Note when goals change or get abandoned
-
-CONSTRAINTS: Rules or limitations the agent must respect
-  - Include explicit constraints ("minimize cost")
-  - Include implicit constraints (quality thresholds, time limits)
-  - Rate binding strength: 0.0 (soft preference) to 1.0 (hard constraint)
-
-ENTITIES: Objects, people, systems mentioned
-  - Include key attributes (cost, quality, time)
-
-DECISIONS: Choices the agent makes
-  - Link to constraints they affect
-
-ASSUMPTIONS: Things taken as given without verification
-
-Output as JSON with the schema: {...}
-```
-
-### Structured Output
-
-Use `response_format={"type": "json_object"}` or function calling to ensure parseable output.
+1. **Reasoning is a structure** — not just text, but a web of goals, constraints, decisions, and assumptions.
+2. **Structures evolve over time** — coherence is computed turn-by-turn.
+3. **Failures appear as structural drift** — when relationships break, coherence collapses.
 
 ---
 
-## Inspect AI Compatibility
+# Inspect AI Compatibility
 
-Inspect AI traces have this structure:
-
-```python
-inspect_sample = {
-    "input": "the task prompt",
-    "target": "expected output",
-    "messages": [
-        {"role": "system", "content": "..."},
-        {"role": "user", "content": "..."},
-        {"role": "assistant", "content": "..."}
-    ],
-    "metadata": {...}
-}
-```
-
-The adapter maps:
+ReCoMo accepts traces in Inspect AI format via adapter:
 
 | Inspect AI | ReCoMo |
 |------------|--------|
 | `input` | `task` |
-| `messages` | `turns` (with turn_number assigned) |
+| `messages` | `turns` |
 | `metadata` | `metadata` |
-| `id` or hash | `trace_id` |
 
 ---
 
-## Future Directions
+# Future Directions
 
-### Semantic Contradiction Detection
-
-Current: Keyword/heuristic contradiction detection.
-
-Future: Embedding-based semantic similarity to catch contradictions that don't share keywords.
-
-### Multi-Trace Analysis
-
-Compare coherence across multiple runs of the same agent. Identify systematic drift patterns.
-
-### Nova Integration
-
-ReCoMo's extraction output can feed into the Nova relational dynamics framework:
-
-- Full UDF physics (coherence/entropy dynamics)
-- Trust-aligned response generation
-- Long-term memory integration
-
-### Real-Time Monitoring
-
-Stream agent reasoning through ReCoMo in real-time. Alert on drift as it happens, not post-hoc.
-
----
-
-## References
-
-- Nova Unified Dynamics Framework (UDF)
-- Inspect AI evaluation framework
-- Protocol Labs AI Safety Hackathon 2024
+- Semantic similarity for contradiction detection (embedding-based)
+- Multi-trace coherence comparison
+- Integration with Nova relational dynamics framework
+- Real-time streaming monitoring
