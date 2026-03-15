@@ -126,6 +126,23 @@ The same pipeline (extract → graph → coherence → drift) runs on the accumu
 
 ---
 
+## TUI (Stage 3)
+
+A **terminal UI** (Textual) for conversation, coherence metrics, and drift alerts in one view.
+
+```bash
+python -m recomo.tui                    # synthetic trace (default)
+python -m recomo.tui path/to/trace.json # Inspect AI trace file
+```
+
+- **Left pane**: Conversation (turns with role and content).
+- **Right pane**: Coherence table (per-turn overall, consistency, constraint integrity, stability) and drift alerts (constraint, goal, decision conflict, assumption, instability).
+- With no argument, the built-in synthetic procurement trace is loaded so you can try the TUI immediately. Pass an Inspect AI JSON path to replay a saved trace.
+
+Requires `textual` (`pip install textual` or `pip install -r requirements.txt`).
+
+---
+
 ## Graph visualization demo
 
 View the **relational graph** (goals, constraints, decisions, tensions) and **coherence trajectory** in the browser. Export the pipeline result to static JSON, then open the viz page (no backend server required).

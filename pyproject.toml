@@ -13,6 +13,7 @@ dependencies = [
     "openai>=1.0",
     "python-dotenv>=1.0",
     "tqdm>=4.0",
+    "textual>=0.40.0",
 ]
 
 # Package "recomo" is the project root (no nested recomo/recomo)
@@ -20,4 +21,4 @@ dependencies = [
 recomo = "."
 
 [tool.setuptools]
-packages = ["recomo", "recomo.extractor", "recomo.graph", "recomo.checker", "recomo.adapters", "recomo.demo", "recomo.demo.scenarios", "recomo.simulator", "recomo.viz"]
+packages = ["recomo", "recomo.extractor", "recomo.graph", "recomo.checker", "recomo.adapters", "recomo.demo", "recomo.demo.scenarios", "recomo.simulator", "recomo.tui", "recomo.viz"]
