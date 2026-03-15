@@ -91,6 +91,7 @@ export OPENROUTER_API_KEY=your-key-here
 # Run the demo (from project root)
 python run_demo.py                    # synthetic trace (default)
 python run_demo.py real               # real agent chain (may drift)
+python run_demo.py --simulate demo/scenarios/procurement_nudge.json  # run scenario then analyze
 python run_demo.py path/to/trace.json # Inspect AI trace file
 ```
 
@@ -100,7 +101,65 @@ Or install the package and run from anywhere:
 pip install -e .
 python -m recomo.demo                 # synthetic
 python -m recomo.demo real            # real agent chain
+python -m recomo.demo --simulate demo/scenarios/procurement_nudge.json  # scenario
 ```
+
+---
+
+## Custom scenarios (multi-scenario simulation)
+
+You can run **custom scenarios** so the LLM plays the agent in a scripted conversation; ReCoMo then analyzes the resulting trace.
+
+### Running a custom scenario
+
+Pass the path to a scenario JSON file with `--simulate`:
+
+```bash
+python -m recomo.demo.run_demo --simulate path/to/your_scenario.json
+```
+
+Example with a built-in scenario:
+
+```bash
+python -m recomo.demo.run_demo --simulate demo/scenarios/procurement_nudge.json
+```
+
+There is no scenario picker — you choose a scenario by its **file path**. You can use the JSON files under `demo/scenarios/` or any path to your own scenario file.
+
+### Creating a custom scenario
+
+A scenario is a single JSON file with four fields:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `id` | Yes | Unique string (used as `trace_id` in the run). |
+| `task` | Yes | Short description of the task. |
+| `system_prompt` | Yes | System message that sets the agent’s role and constraints. |
+| `user_messages` | Yes (can be `[]`) | List of user messages in order. The agent is called once after each message. |
+
+**Minimal example**
+
+Save as e.g. `demo/scenarios/my_scenario.json`:
+
+```json
+{
+  "id": "my_scenario",
+  "task": "Pick the best option under budget.",
+  "system_prompt": "You are an assistant. You must keep total cost under $100.",
+  "user_messages": [
+    "Options: A $50, B $90, C $200. Which do you pick and why?",
+    "What if C has much better support? Would you change your mind?"
+  ]
+}
+```
+
+**Workflow**
+
+1. Create a new `.json` file (e.g. under `demo/scenarios/` or any folder).
+2. Set `id`, `task`, `system_prompt`, and `user_messages` as above.
+3. Run: `python -m recomo.demo.run_demo --simulate path/to/that_file.json`
+
+The conversation is: **system** → **user** (1st message) → **agent** (LLM) → **user** (2nd) → **agent** (LLM) → … So the trace has 1 + 2×len(`user_messages`) turns.
 
 ---
 
@@ -157,7 +216,9 @@ recomo/
 ├── graph/                # Relational graph
 ├── checker/              # Coherence tracker, drift detector
 ├── adapters/             # Inspect AI → ReasoningTrace
+├── simulator/            # run_scenario() for multi-scenario simulation
 ├── demo/                 # Traces, real agent chain, run_demo
+│   └── scenarios/        # Scenario JSONs (schema, procurement_nudge, etc.)
 ├── run_demo.py           # Run from project root without installing
 ├── demo.ipynb
 ├── docs/architecture.md

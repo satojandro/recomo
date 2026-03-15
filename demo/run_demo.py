@@ -12,8 +12,10 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Callable
 
 from dotenv import load_dotenv
+from tqdm import tqdm
 
 from recomo.trace_schema import ReasoningTrace
 from recomo.extractor import ClaimExtractor
@@ -39,18 +41,29 @@ def load_trace(source: str) -> ReasoningTrace:
     return inspect_trace_to_reasoning_trace(data)
 
 
-def run_pipeline(trace: ReasoningTrace) -> dict:
+def run_pipeline(
+    trace: ReasoningTrace,
+    progress_callback: Callable[[str, int, int], None] | None = None,
+) -> dict:
     """Run extractor -> graph -> coherence tracker -> drift detector. Return report dict."""
+    total_steps = 4
     try:
+        if progress_callback:
+            progress_callback("Extracting signals", 1, total_steps)
         extractor = ClaimExtractor()
         extraction = extractor.extract(trace)
         if "error" in extraction:
             return {"error": extraction["error"], "raw": extraction.get("raw", "")}
 
+        if progress_callback:
+            progress_callback("Building graph", 2, total_steps)
         graph = RelationalGraph()
         graph.load_extraction(extraction)
         tracker = CoherenceTracker(graph)
         tracker.compute_trajectory()
+
+        if progress_callback:
+            progress_callback("Computing coherence", 3, total_steps)
         detector = DriftDetector(graph, tracker)
         drifts = detector.detect()
         goal_drifts = detector.detect_goal_drift()
@@ -58,6 +71,8 @@ def run_pipeline(trace: ReasoningTrace) -> dict:
         assumption_drifts = detector.detect_assumption_drift()
         instability_alerts = detector.detect_instability()
 
+        if progress_callback:
+            progress_callback("Detecting drift", 4, total_steps)
         return {
             "extraction": extraction,
             "trajectory": tracker.get_trajectory(),
@@ -69,6 +84,21 @@ def run_pipeline(trace: ReasoningTrace) -> dict:
         }
     except Exception as e:
         return {"error": str(e), "raw": ""}
+
+
+def print_conversation(trace: ReasoningTrace, max_content_chars: int = 600) -> None:
+    """Print each turn of the conversation (role + content, truncated)."""
+    print("--- Conversation ---")
+    for turn in trace.turns:
+        content = (turn.content or "").strip()
+        if len(content) > max_content_chars:
+            content = content[:max_content_chars] + "..."
+        role = turn.role.upper()
+        print(f"[Turn {turn.turn_number}] {role}:")
+        if content:
+            print(content)
+        print()
+    sys.stdout.flush()
 
 
 def print_report(report: dict, trace_source: str) -> None:
@@ -183,7 +213,7 @@ def main() -> None:
 
     if args.simulate is not None:
         try:
-            trace = run_scenario(Path(args.simulate))
+            trace = run_scenario(Path(args.simulate), print_live=True)
             source = f"simulate:{args.simulate}"
         except Exception as e:
             print("Failed to run scenario:", e, file=sys.stderr)
@@ -197,11 +227,22 @@ def main() -> None:
             sys.exit(1)
 
     if source == "real" or (args.simulate is not None):
+        print()
+        print_conversation(trace)
         print("--- ReCoMo analysis ---")
         print()
         sys.stdout.flush()
+        with tqdm(total=4, desc="Pipeline", unit="step") as pbar:
+            def on_progress(_name: str, step: int, total: int) -> None:
+                pbar.set_postfix_str(_name)
+                pbar.n = step
+                pbar.refresh()
 
-    report = run_pipeline(trace)
+            report = run_pipeline(trace, progress_callback=on_progress)
+            pbar.n = 4
+            pbar.refresh()
+    else:
+        report = run_pipeline(trace)
     print_report(report, source)
 
 
